@@ -1,0 +1,139 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: quality (lint+typecheck+test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test
+
+  build:
+    name: build (vite)
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+          if-no-files-found: error
+          retention-days: 7
+
+  docker:
+    name: docker (build + push GHCR)
+    runs-on: ubuntu-latest
+    needs: build
+    # Solo publica imagen en push a main (no en PRs) — PRs solo verifican que compila
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=short
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+          # healthcheck se valida en runtime, no en build
+
+      - name: Image digest
+        run: echo "${{ steps.meta.outputs.tags }}"
+
+  deploy:
+    name: deploy (Coolify webhook)
+    runs-on: ubuntu-latest
+    needs: docker
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Trigger Coolify deploy
+        env:
+          COOLIFY_WEBHOOK_URL: ${{ secrets.COOLIFY_WEBHOOK_URL }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+          COOLIFY_APP_UUID: ${{ secrets.COOLIFY_APP_UUID }}
+        run: |
+          if [ -n "$COOLIFY_WEBHOOK_URL" ]; then
+            echo "Triggering Coolify webhook..."
+            curl -fsSL -X GET "$COOLIFY_WEBHOOK_URL" && echo "Webhook OK" || (echo "Webhook failed" && exit 1)
+          elif [ -n "$COOLIFY_TOKEN" ] && [ -n "$COOLIFY_APP_UUID" ]; then
+            echo "Triggering Coolify API deploy..."
+            # Coolify API v4 — ajusta COOLIFY_HOST si usas instancia self-hosted
+            HOST="${COOLIFY_HOST:-https://app.coolify.io}"
+            curl -fsSL -X GET "$HOST/api/v1/applications/$COOLIFY_APP_UUID/restart" \
+              -H "Authorization: Bearer $COOLIFY_TOKEN" && echo "API deploy OK" || (echo "API deploy failed" && exit 1)
+          else
+            echo "::notice::No COOLIFY_WEBHOOK_URL ni COOLIFY_TOKEN/APP_UUID configurados — skip deploy (imagen ya publicada en GHCR)."
+            echo "Para activar deploy automático:"
+            echo "  1. En Coolify: tu App → Webhooks → copia Webhook URL"
+            echo "  2. En GitHub: Settings → Secrets → COOLIFY_WEBHOOK_URL = <url>"
+            echo "  3. Alternativa API: COOLIFY_TOKEN + COOLIFY_APP_UUID + COOLIFY_HOST"
+          fi
+
+  # Job de verificación que puede usarse como required status check
+  ci-success:
+    name: ci-success
+    runs-on: ubuntu-latest
+    needs: [quality, build]
+    if: always()
+    steps:
+      - run: |
+          if [ "${{ needs.quality.result }}" != "success" ] || [ "${{ needs.build.result }}" != "success" ]; then
+            echo "CI failed"
+            exit 1
+          fi
+          echo "CI passed"

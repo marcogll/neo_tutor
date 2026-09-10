@@ -1,0 +1,18 @@
+{
+  "app.name": "NeoType",
+  "app.tagline": "Mecanografía táctil y Neovim",
+  "nav.home": "Inicio",
+  "nav.calibration": "Calibración",
+  "nav.diagnostic": "Diagnóstico",
+  "nav.lesson": "Lección",
+  "nav.zen": "Zen",
+  "nav.neovim": "Laboratorio Neovim",
+  "nav.progress": "Progreso",
+  "nav.settings": "Ajustes",
+  "calibration.title": "Calibración del teclado",
+  "calibration.confirm": "Confirmar teclado",
+  "diagnostic.title": "Diagnóstico inicial",
+  "lesson.continue": "Continuar sesión",
+  "zen.title": "Modo Zen",
+  "settings.title": "Ajustes"
+}
