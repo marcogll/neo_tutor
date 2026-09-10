@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { TYPING_ES } from '@/content/courses/typing-es';
+import { ALL_COURSES } from '@/content/courses';
 
 // Almacenamiento simple — una sola fuente, reanudable, explicable
 // PRD §15.2 + FR001/FR002/FR004/FR010
@@ -29,6 +30,7 @@ interface ProgressState {
   isUnlocked: (id: string) => boolean;
   nextRecommended: () => string | null;
   overall: () => { total: number; completed: number; pct: number };
+  overallByDomain: (domain: string) => { total: number; completed: number; pct: number };
 
   // mutaciones
   touch: (id: string) => void;
@@ -56,9 +58,8 @@ function initialFor(id: string, idx: number): LessonProgress {
 
 function computeInitial(): Record<string, LessonProgress> {
   const map: Record<string, LessonProgress> = {};
-  TYPING_ES.forEach((l, i) => (map[l.id] = initialFor(l.id, i)));
-  // marca available según prereqs (para seed)
-  TYPING_ES.forEach((l) => {
+  ALL_COURSES.forEach((l, i) => (map[l.id] = initialFor(l.id, i)));
+  ALL_COURSES.forEach((l) => {
     if (l.prerequisites.length === 0) map[l.id]!.status = 'available';
   });
   return map;
@@ -74,21 +75,25 @@ export const useProgressStore = create<ProgressState>()(
 
       getLesson: (id) => get().byId[id] ?? initialFor(id, 0),
       isUnlocked: (id) => {
-        const lesson = TYPING_ES.find((l) => l.id === id);
+        const lesson = ALL_COURSES.find((l) => l.id === id);
         if (!lesson) return false;
         if (lesson.prerequisites.length === 0) return true;
         return lesson.prerequisites.every((p) => get().byId[p]?.status === 'completed');
       },
       nextRecommended: () => {
         const byId = get().byId;
-        // primera no completada y desbloqueada
-        const cand = TYPING_ES.find((l) => byId[l.id]?.status !== 'completed' && get().isUnlocked(l.id));
-        return cand?.id ?? TYPING_ES.find((l) => byId[l.id]?.status !== 'completed')?.id ?? null;
+        const cand = ALL_COURSES.find((l) => byId[l.id]?.status !== 'completed' && get().isUnlocked(l.id));
+        return cand?.id ?? ALL_COURSES.find((l) => byId[l.id]?.status !== 'completed')?.id ?? null;
       },
       overall: () => {
-        const total = TYPING_ES.length;
+        const total = ALL_COURSES.length;
         const completed = Object.values(get().byId).filter((p) => p.status === 'completed').length;
         return { total, completed, pct: total ? Math.round((completed / total) * 100) : 0 };
+      },
+      overallByDomain: (domain: string) => {
+        const list = ALL_COURSES.filter((l) => l.domain === domain);
+        const completed = list.filter((l) => get().byId[l.id]?.status === 'completed').length;
+        return { total: list.length, completed, pct: list.length ? Math.round((completed / list.length) * 100) : 0 };
       },
 
       touch: (id) =>
@@ -126,10 +131,11 @@ export const useProgressStore = create<ProgressState>()(
           // desbloquear la siguiente si se completó
           const updated: Record<string, LessonProgress> = { ...s.byId, [id]: next };
           if (completed) {
-            const idx = TYPING_ES.findIndex((l) => l.id === id);
-            const nxt = TYPING_ES[idx + 1];
-            if (nxt && updated[nxt.id]?.status === 'locked') {
-              updated[nxt.id] = { ...updated[nxt.id]!, status: 'available' };
+            // desbloquea dependientes directos (no solo siguiente lineal)
+            for (const l of ALL_COURSES) {
+              if (l.prerequisites.includes(id) && updated[l.id]?.status === 'locked' && l.prerequisites.every((p) => updated[p]?.status === 'completed')) {
+                updated[l.id] = { ...updated[l.id]!, status: 'available' };
+              }
             }
           }
           return { byId: updated, lastLessonId: id };
@@ -161,8 +167,7 @@ export const useProgressStore = create<ProgressState>()(
                   if (v >= 3) byId[k]!.completedAt = new Date().toISOString();
                 }
               }
-              // re-eval unlocks
-              TYPING_ES.forEach((l) => {
+              ALL_COURSES.forEach((l) => {
                 if (l.prerequisites.length && l.prerequisites.every((p) => byId[p]?.status === 'completed')) {
                   if (byId[l.id]?.status === 'locked') byId[l.id]!.status = 'available';
                 }

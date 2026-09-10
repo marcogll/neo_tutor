@@ -65,7 +65,7 @@ export function Home() {
       <Card>
         <CardHeader>
           <CardTitle className="text-sm">Lecciones recientes</CardTitle>
-          <CardDescription>Toque para continuar donde quedaste</CardDescription>
+          <CardDescription>Toque para continuar donde quedaste · Cursos completos por dominio</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-2 sm:grid-cols-2">
           {TYPING_ES.slice(0, 4).map((l) => {
@@ -77,6 +77,18 @@ export function Home() {
               </Link>
             );
           })}
+        </CardContent>
+      </Card>
+
+      <Card className="border-dashed">
+        <CardHeader>
+          <CardTitle className="text-sm">Cursos completos</CardTitle>
+          <CardDescription>Typing 10 · Vim 9 · Python 7 · Go 7 — todo sobre Lesson §18</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
+          <Button size="sm" asChild><Link to="/cursos">Ver todos los cursos</Link></Button>
+          <Button variant="outline" size="sm" asChild><Link to="/code/python-es-01">Python demo</Link></Button>
+          <Button variant="outline" size="sm" asChild><Link to="/code/go-es-01">Go demo</Link></Button>
         </CardContent>
       </Card>
     </div>

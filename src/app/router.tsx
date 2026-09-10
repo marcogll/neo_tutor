@@ -8,6 +8,8 @@ import { Progress } from '@/features/progress/Progress';
 import { Lab } from '@/features/neovim/Lab';
 import { Settings } from '@/features/settings/Settings';
 import { Home } from './Home';
+import { CourseList } from '@/features/course/CourseList';
+import { CodeLesson } from '@/features/course/CodeLesson';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
 function Placeholder({ title }: { title: string }) {
@@ -46,6 +48,9 @@ export const router = createBrowserRouter(
       { path: 'neovim', element: <Lab /> },
       { path: 'progreso', element: <Progress /> },
       { path: 'ajustes', element: <Settings /> },
+      { path: 'cursos', element: <CourseList /> },
+      { path: 'cursos/:domain', element: <CourseList /> },
+      { path: 'code/:id', element: <CodeLesson /> },
         { path: 'ajustes', element: <Placeholder title="Ajustes" /> },
       ],
     },

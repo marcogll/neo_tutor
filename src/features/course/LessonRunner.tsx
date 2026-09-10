@@ -19,8 +19,7 @@ export function LessonRunner() {
   const profile = useKeyboardStore((s) => s.activeProfile);
   const { byId, isUnlocked, touch, setBlock, recordAttempt, resetLesson, lastLessonId, overall } = useProgressStore();
 
-  const progress = id ? byId[id] : undefined;
-  const [blockIdx, setBlockIdx] = useState(() => (id && byId[id]?.currentBlock) ?? 0);
+  const [blockIdx, setBlockIdx] = useState<number>(() => Number((id && byId[id]?.currentBlock) ?? 0));
   const [input, setInput] = useState('');
   const [result, setResult] = useState<{ acc: number; pass: boolean } | null>(null);
 
@@ -189,7 +188,7 @@ export function LessonRunner() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="rounded-xl bg-muted p-4 font-mono text-sm leading-relaxed">
-            {target.split('').map((ch, i) => {
+            {target.split('').map((ch: string, i: number) => {
               const typed = input[i];
               if (typed === undefined) return <span key={i} className="text-muted-foreground">{ch}</span>;
               return <span key={i} className={typed === ch ? 'text-foreground' : 'text-destructive underline decoration-wavy'}>{ch}</span>;

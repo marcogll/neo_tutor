@@ -7,11 +7,10 @@ import { useTheme } from './theme';
 
 const NAV = [
   { to: '/', label: 'Inicio' },
-  { to: '/calibracion', label: 'Calibración' },
-  { to: '/diagnostico', label: 'Diagnóstico' },
+  { to: '/cursos', label: 'Cursos' },
   { to: '/leccion', label: 'Lecciones' },
   { to: '/zen', label: 'Zen' },
-  { to: '/neovim', label: 'Neovim Lab' },
+  { to: '/neovim', label: 'Neovim' },
   { to: '/progreso', label: 'Progreso' },
   { to: '/ajustes', label: 'Ajustes' },
 ] as const;
