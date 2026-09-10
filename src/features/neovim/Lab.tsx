@@ -79,8 +79,14 @@ export function Lab() {
             </div>
           </div>
 
+          <div className="rounded-xl border bg-muted p-3 text-xs leading-relaxed">
+            <div className="font-medium">Chuleta rápida:</div>
+            <div><Kbd>h j k l</Kbd> mover · <Kbd>w b e</Kbd> palabra · <Kbd>0 ^ $</Kbd> línea · <Kbd>gg G</Kbd> archivo · <Kbd>i a</Kbd> insert · <Kbd>x r</Kbd> borrar/reemplazar · <Kbd>dw ciw dd yy p</Kbd> operadores · <Kbd>/ n u .</Kbd> buscar/repetir</div>
+            <div className="text-muted-foreground">Tip: en Normal mueves, en Insert escribes. Esc siempre vuelve a Normal.</div>
+          </div>
+
           <div className="flex flex-wrap gap-1.5">
-            {['h', 'j', 'k', 'l', 'w', '0', '$', 'i', 'x', 'dd', 'u', 'Esc'].map((k) => (
+            {['h', 'j', 'k', 'l', 'w', 'b', 'e', '0', '^', '$', 'gg', 'G', 'i', 'a', 'x', 'r', 'dw', 'ciw', 'dd', 'yy', 'p', '/','n','u','Esc'].map((k) => (
               <Button
                 key={k}
                 variant="outline"

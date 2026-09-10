@@ -19,11 +19,22 @@ export function LessonRunner() {
   const profile = useKeyboardStore((s) => s.activeProfile);
   const { byId, isUnlocked, touch, setBlock, recordAttempt, resetLesson, lastLessonId, overall } = useProgressStore();
 
-  const [blockIdx, setBlockIdx] = useState<number>(() => Number((id && byId[id]?.currentBlock) ?? 0));
+  const [blockIdx, setBlockIdx] = useState<number>(0);
   const [input, setInput] = useState('');
   const [result, setResult] = useState<{ acc: number; pass: boolean } | null>(null);
 
-  // FR002 guardar tras cada bloque + FR001 reanudar
+  const required = useMemo(() => [...new Set((lesson?.blocks ?? []).flatMap((b) => b.targetKeys ?? []))], [lesson]);
+  const blocked = useMemo(() => (lesson ? (profile ? !canRunLesson(profile as never, required) : true) : false), [lesson, profile, required]);
+  const block = useMemo(() => lesson?.blocks[blockIdx], [lesson, blockIdx]);
+  const target = useMemo(() => block?.content ?? block?.prompt ?? '', [block]);
+  const isEval = block?.kind === 'evaluation';
+  const prog = id ? byId[id] : undefined;
+  const logs = useMemo(() => buildKeystrokeLog(target, input, [], []), [target, input]);
+  const acc = useMemo(() => calcAccuracy(logs.slice(0, input.length)), [logs, input.length]);
+  const nextCode = useMemo(() => (target[input.length]?.toLowerCase() ? `Key${target[input.length]!.toUpperCase()}` : null), [target, input.length]);
+  const nextLesson = useMemo(() => (lesson ? TYPING_ES[TYPING_ES.findIndex((l) => l.id === lesson.id) + 1] : undefined), [lesson]);
+
+  // FR002 guardar tras cada bloque + FR001 reanudar — hooks siempre en mismo orden
   useEffect(() => {
     if (id) {
       const saved = byId[id]?.currentBlock ?? 0;
@@ -34,7 +45,7 @@ export function LessonRunner() {
 
   useEffect(() => {
     if (lesson) setBlock(lesson.id, blockIdx);
-  }, [blockIdx]);
+  }, [lesson, blockIdx]);
 
   if (!lesson) {
     const ov = overall();
@@ -115,25 +126,12 @@ export function LessonRunner() {
     );
   }
 
-  const required = [...new Set(lesson.blocks.flatMap((b) => b.targetKeys ?? []))];
-  const blocked = profile ? !canRunLesson(profile as never, required) : true;
-
-  const block = lesson.blocks[blockIdx]!;
-  const target = block.content ?? block.prompt ?? '';
-  const isEval = block.kind === 'evaluation';
-  const prog = byId[lesson.id];
-
-  const logs = useMemo(() => buildKeystrokeLog(target, input, [], []), [target, input]);
-  const acc = calcAccuracy(logs.slice(0, input.length));
-  const nextCode = target[input.length]?.toLowerCase() ? `Key${target[input.length]!.toUpperCase()}` : null;
-  const nextLesson = TYPING_ES[TYPING_ES.findIndex((l) => l.id === lesson.id) + 1];
-
   function submit() {
-    const pass = acc >= lesson!.mastery.minAccuracy;
+    if (!lesson) return;
+    const pass = acc >= lesson.mastery.minAccuracy;
     setResult({ acc, pass });
-    if (isEval) recordAttempt(lesson!.id, acc, pass);
-    // auto-siguiente bloque si aprueba y no es evaluación final, o si es práctica
-    if (pass && blockIdx < lesson!.blocks.length - 1 && !isEval) {
+    if (isEval) recordAttempt(lesson.id, acc, pass);
+    if (pass && blockIdx < lesson.blocks.length - 1 && !isEval) {
       setTimeout(() => { setBlockIdx((i) => i + 1); setInput(''); setResult(null); }, 400);
     }
   }
@@ -183,36 +181,55 @@ export function LessonRunner() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base capitalize">{block.kind} — bloque {blockIdx + 1}/{lesson.blocks.length}</CardTitle>
-          <CardDescription>{block.prompt ?? 'Escribe exactamente lo que ves.'} {isEval && '(evaluación 95%)'}</CardDescription>
+          <CardTitle className="text-base capitalize">{block?.kind ?? ''} — bloque {blockIdx + 1}/{lesson.blocks.length}</CardTitle>
+          <CardDescription>{block?.prompt ?? 'Escribe exactamente lo que ves.'} {isEval && '(evaluación 95%)'}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="rounded-xl bg-muted p-4 font-mono text-sm leading-relaxed">
-            {target.split('').map((ch: string, i: number) => {
-              const typed = input[i];
-              if (typed === undefined) return <span key={i} className="text-muted-foreground">{ch}</span>;
-              return <span key={i} className={typed === ch ? 'text-foreground' : 'text-destructive underline decoration-wavy'}>{ch}</span>;
-            })}
-          </div>
+          {block?.kind === 'position' ? (
+            <div className="space-y-4">
+              <div className="rounded-xl border bg-accent/30 p-4 text-sm leading-relaxed">{block.prompt}</div>
+              <p className="text-xs text-muted-foreground">Bloque informativo — observa dedos y posición, luego continúa. No se evalúa precisión.</p>
+              <div className="overflow-x-auto pb-2">
+                {profile && <Keyboard layout={profile as never} highlightedCode={block.targetKeys?.[0] ?? null} />}
+              </div>
+              {profile && block.targetKeys?.[0] && <Hands activeFinger={profile.keys.find((k) => k.code === block.targetKeys![0])?.finger ?? null} />}
+              <div className="flex gap-2">
+                <Button onClick={() => { setBlockIdx((i) => Math.min(lesson.blocks.length - 1, i + 1)); setResult(null); }}>Entendido → Siguiente</Button>
+                <Button variant="ghost" onClick={() => setBlockIdx((i) => Math.max(0, i - 1))}>← Anterior</Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="rounded-xl bg-muted p-4 font-mono text-sm leading-relaxed">
+                {target.split('').map((ch: string, i: number) => {
+                  const typed = input[i];
+                  if (typed === undefined) return <span key={i} className="text-muted-foreground">{ch}</span>;
+                  return <span key={i} className={typed === ch ? 'text-foreground' : 'text-destructive underline decoration-wavy'}>{ch}</span>;
+                })}
+              </div>
 
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && input.length) submit(); }}
-            placeholder={isEval ? 'Evaluación — Enter para evaluar' : 'Escribe aquí… Enter para evaluar'}
-            className="flex h-10 w-full rounded-xl border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            autoFocus
-          />
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && input.length) submit(); }}
+                placeholder={isEval ? 'Evaluación — Enter para evaluar' : 'Escribe aquí… Enter para evaluar'}
+                className="flex h-10 w-full rounded-xl border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                autoFocus
+              />
 
-          <div className="flex flex-wrap gap-2 text-xs">
-            <Badge variant="secondary">{(acc * 100).toFixed(0)}% precisión</Badge>
-            <Badge variant="outline">{input.length}/{target.length}</Badge>
-            {prog?.bestAccuracy ? <Badge variant="outline">mejor {(prog.bestAccuracy * 100).toFixed(0)}%</Badge> : null}
-          </div>
+              <div className="flex flex-wrap gap-2 text-xs">
+                <Badge variant="secondary">{(acc * 100).toFixed(0)}% precisión</Badge>
+                <Badge variant="outline">{input.length}/{target.length}</Badge>
+                {prog?.bestAccuracy ? <Badge variant="outline">mejor {(prog.bestAccuracy * 100).toFixed(0)}%</Badge> : null}
+              </div>
 
-          <Separator />
-          {profile && <Keyboard layout={profile as never} highlightedCode={nextCode} />}
-          {profile && nextCode && <Hands activeFinger={profile.keys.find((k) => k.code === nextCode)?.finger ?? null} />}
+              <Separator />
+              <div className="overflow-x-auto pb-2">
+                {profile && <Keyboard layout={profile as never} highlightedCode={nextCode} />}
+              </div>
+              {profile && nextCode && <Hands activeFinger={profile.keys.find((k) => k.code === nextCode)?.finger ?? null} />}
+            </>
+          )}
 
           <div className="flex flex-wrap gap-2">
             <Button size="sm" onClick={submit} disabled={input.length === 0}>Evaluar ↩</Button>

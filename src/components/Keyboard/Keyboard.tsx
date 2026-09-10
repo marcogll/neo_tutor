@@ -32,9 +32,9 @@ export function Keyboard({ layout, highlightedCode, errorCode, pressedCode, onKe
   const sortedRows = [...rows.entries()].sort((a, b) => a[0] - b[0]);
 
   return (
-    <div role="group" aria-label={`Teclado ${layout.name} ${layout.physical} ${layout.logical}`} className="flex flex-col gap-1.5">
+    <div role="group" aria-label={`Teclado ${layout.name} ${layout.physical} ${layout.logical}`} className="flex min-w-[640px] flex-col gap-1.5">
       {sortedRows.map(([row, keys]) => (
-        <div key={row} className="flex gap-1.5 justify-center">
+        <div key={row} className="flex gap-1.5 justify-center flex-nowrap">
           {[...keys].sort((a, b) => a.col - b.col).map((k) => {
             const isTarget = k.code === highlightedCode;
             const isError = k.code === errorCode;
