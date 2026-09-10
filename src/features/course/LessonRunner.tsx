@@ -190,7 +190,7 @@ export function LessonRunner() {
               <div className="rounded-xl border bg-accent/30 p-4 text-sm leading-relaxed">{block.prompt}</div>
               <p className="text-xs text-muted-foreground">Bloque informativo — observa dedos y posición, luego continúa. No se evalúa precisión.</p>
               <div className="overflow-x-auto pb-2">
-                {profile && <Keyboard layout={profile as never} highlightedCode={block.targetKeys?.[0] ?? null} />}
+                {profile && <Keyboard layout={profile as never} highlightedCode={block.targetKeys?.[0] ?? null} activeCodes={block.targetKeys ?? []} />}
               </div>
               {profile && block.targetKeys?.[0] && <Hands activeFinger={profile.keys.find((k) => k.code === block.targetKeys![0])?.finger ?? null} />}
               <div className="flex gap-2">
@@ -225,7 +225,7 @@ export function LessonRunner() {
 
               <Separator />
               <div className="overflow-x-auto pb-2">
-                {profile && <Keyboard layout={profile as never} highlightedCode={nextCode} />}
+                {profile && <Keyboard layout={profile as never} highlightedCode={nextCode} activeCodes={block?.targetKeys ?? lesson.blocks.flatMap((b) => b.targetKeys ?? [])} />}
               </div>
               {profile && nextCode && <Hands activeFinger={profile.keys.find((k) => k.code === nextCode)?.finger ?? null} />}
             </>

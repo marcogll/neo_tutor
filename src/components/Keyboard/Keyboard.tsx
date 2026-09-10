@@ -6,6 +6,7 @@ type Props = {
   highlightedCode?: string | null;
   errorCode?: string | null;
   pressedCode?: string | null;
+  activeCodes?: Set<string> | string[]; // teclas que ocupa esta lección/bloque — indicador color
   onKeySelect?: (code: string) => void;
 };
 
@@ -22,7 +23,8 @@ const FINGER_DOT: Record<string, string> = {
   RT: 'bg-zinc-400',
 };
 
-export function Keyboard({ layout, highlightedCode, errorCode, pressedCode, onKeySelect }: Props) {
+export function Keyboard({ layout, highlightedCode, errorCode, pressedCode, activeCodes, onKeySelect }: Props) {
+  const activeSet = activeCodes ? new Set(activeCodes as string[] | Set<string>) : null;
   const rows = new Map<number, typeof layout.keys>();
   for (const k of layout.keys) {
     const arr = rows.get(k.row) ?? [];
@@ -39,13 +41,14 @@ export function Keyboard({ layout, highlightedCode, errorCode, pressedCode, onKe
             const isTarget = k.code === highlightedCode;
             const isError = k.code === errorCode;
             const isPressed = k.code === pressedCode;
+            const isActive = activeSet ? activeSet.has(k.code) : false;
             return (
               <button
                 key={k.code}
                 type="button"
                 data-code={k.code}
                 data-finger={k.finger}
-                aria-label={`${k.label} dedo ${k.finger} código ${k.code}${isTarget ? ' objetivo' : ''}${isError ? ' error' : ''}`}
+                aria-label={`${k.label} dedo ${k.finger} código ${k.code}${isTarget ? ' objetivo' : ''}${isError ? ' error' : ''}${isActive ? ' parte de la lección' : ''}`}
                 aria-pressed={isPressed}
                 onClick={() => onKeySelect?.(k.code)}
                 className={cn(
@@ -54,7 +57,8 @@ export function Keyboard({ layout, highlightedCode, errorCode, pressedCode, onKe
                   isTarget && 'border-foreground bg-foreground text-background ring-2 ring-foreground ring-offset-2',
                   isError && 'border-destructive bg-destructive/10 text-destructive',
                   isPressed && !isTarget && !isError && 'bg-accent',
-                  !isTarget && !isError && 'border-border hover:bg-accent',
+                  isActive && !isTarget && !isError && 'bg-amber-100 border-amber-300 text-amber-900 dark:bg-amber-900/30 dark:border-amber-800 dark:text-amber-200',
+                  !isTarget && !isError && !isActive && 'border-border hover:bg-accent',
                 )}
                 style={{ minWidth: `${36 * (k.width ?? 1)}px`, flex: k.width && k.width > 1.2 ? `0 0 ${36 * k.width}px` : undefined }}
               >
@@ -70,6 +74,7 @@ export function Keyboard({ layout, highlightedCode, errorCode, pressedCode, onKe
       <p className="mt-1 text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-1"><span className="size-2 rounded bg-foreground" /> objetivo</span>
         {' · '}<span className="inline-flex items-center gap-1"><span className="size-2 rounded bg-destructive" /> error</span>
+        {' · '}<span className="inline-flex items-center gap-1"><span className="size-2 rounded bg-amber-300" /> ocupa lección</span>
         {' · punto = dedo recomendado'}
       </p>
     </div>
