@@ -7,6 +7,15 @@
     <meta name="description" content="NeoType — Mecanografía táctil y Neovim" />
     <meta name="theme-color" content="#0f0f0f" />
     <title>NeoType</title>
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('neotype:theme');
+          var dark = t === 'dark' || (t !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (dark) document.documentElement.classList.add('dark');
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

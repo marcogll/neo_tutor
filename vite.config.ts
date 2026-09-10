@@ -6,6 +6,7 @@ import path from 'node:path'
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: './',
   plugins: [
     tailwindcss(),
     react(),
@@ -27,6 +28,16 @@ export default defineConfig({
       devOptions: { enabled: false },
     }),
   ],
+  server: {
+    host: '0.0.0.0',
+    allowedHosts: ['codeserver.tail68d50e.ts.net', '.tail68d50e.ts.net', 'localhost'],
+    hmr: { clientPort: 443 },
+  },
+  preview: {
+    host: '0.0.0.0',
+    port: 5173,
+    allowedHosts: ['codeserver.tail68d50e.ts.net', '.tail68d50e.ts.net', 'localhost'],
+  },
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, './src'),
