@@ -6,12 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useProgressStore } from '@/storage/progress';
 import { checkPython, checkGo } from '@/engines/code/evaluator';
+import { getBlockText } from '@/domains/lesson';
 
 export function CodeLesson() {
   const { id } = useParams<{ id: string }>();
   const lesson = id ? getAnyLesson(id) : undefined;
   const { recordAttempt, byId } = useProgressStore();
-  const [code, setCode] = useState(lesson?.blocks[0]?.content ?? '');
+  const [code, setCode] = useState(getBlockText(lesson?.blocks[0] as never));
   const [res, setRes] = useState<{ ok: boolean; reason: string } | null>(null);
 
   if (!lesson || (lesson.domain !== 'python' && lesson.domain !== 'go')) {
@@ -22,7 +23,8 @@ export function CodeLesson() {
   const isPython = lesson!.domain === 'python';
 
   function run() {
-    const tokens = lesson!.blocks[0]?.content ? lesson!.blocks[0].content.split(/\W+/).filter(Boolean).slice(0, 3) : [];
+    const raw = getBlockText(lesson!.blocks[0] as never);
+    const tokens = raw ? raw.split(/\W+/).filter(Boolean).slice(0, 3) : [];
     const r = isPython ? checkPython(code, tokens) : checkGo(code, tokens);
     setRes(r);
     recordAttempt(lesson!.id, r.ok ? 1 : 0, r.ok);
@@ -48,7 +50,7 @@ export function CodeLesson() {
           <textarea value={code} onChange={(e) => setCode(e.target.value)} rows={8} className="w-full rounded-xl border bg-muted p-3 font-mono text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" spellCheck={false} />
           <div className="flex gap-2">
             <Button onClick={run}>Evaluar</Button>
-            <Button variant="outline" onClick={() => setCode(lesson.blocks[0]?.content ?? '')}>Reset</Button>
+            <Button variant="outline" onClick={() => setCode(getBlockText(lesson.blocks[0] as never))}>Reset</Button>
             <Badge variant={res?.ok ? 'default' : 'outline'} className="ml-auto">{res ? (res.ok ? '✓ OK' : `✕ ${res.reason}`) : 'sin evaluar'}</Badge>
           </div>
           {res?.ok && prog?.status === 'completed' && <div className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">¡Dominado! Siguiente disponible.</div>}

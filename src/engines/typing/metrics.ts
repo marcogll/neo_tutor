@@ -57,3 +57,69 @@ export function buildKeystrokeLog(
   }
   return logs;
 }
+
+// §17 Métricas detalladas — accuracy por tecla/bigrama/dedo/mano
+export interface DetailedTypingMetrics {
+  accuracy: number;
+  correctKeys: number;
+  incorrectKeys: number;
+  total: number;
+  wpm: number;
+  rawWpm: number;
+  consistency: number; // 0..1, 1 = perfecto ritmo
+  durationMs: number;
+  accuracyByKey: Record<string, { correct: number; total: number; acc: number }>;
+  accuracyByBigram: Record<string, { correct: number; total: number; acc: number }>;
+}
+
+export function calcDetailedMetrics(logs: KeystrokeLog[], durationMs: number, wpmChars: number): DetailedTypingMetrics {
+  const total = logs.length;
+  const correct = logs.filter((l) => l.correct).length;
+  const accuracy = total ? correct / total : 0;
+  const wpm = calcWPM(wpmChars, durationMs);
+  const rawWpm = calcWPM(total, durationMs);
+  const intervals = logs.map((l) => l.time).filter((t) => t > 0);
+  const rhythm = calcRhythm(intervals);
+  const consistency = rhythm.sd > 0 ? Math.max(0, 1 - rhythm.sd / 200) : 1;
+
+  const byKey: Record<string, { correct: number; total: number; acc: number }> = {};
+  for (const l of logs) {
+    const k = l.expected.toLowerCase() || 'unknown';
+    if (!byKey[k]) byKey[k] = { correct: 0, total: 0, acc: 0 };
+    byKey[k]!.total++;
+    if (l.correct) byKey[k]!.correct++;
+  }
+  for (const k of Object.keys(byKey)) byKey[k]!.acc = byKey[k]!.total ? byKey[k]!.correct / byKey[k]!.total : 0;
+
+  const byBigram: Record<string, { correct: number; total: number; acc: number }> = {};
+  for (let i = 0; i < logs.length - 1; i++) {
+    const bg = `${logs[i]!.expected}${logs[i + 1]!.expected}`.toLowerCase();
+    if (bg.length !== 2) continue;
+    if (!byBigram[bg]) byBigram[bg] = { correct: 0, total: 0, acc: 0 };
+    byBigram[bg]!.total++;
+    if (logs[i]!.correct && logs[i + 1]!.correct) byBigram[bg]!.correct++;
+  }
+  for (const k of Object.keys(byBigram)) byBigram[k]!.acc = byBigram[k]!.total ? byBigram[k]!.correct / byBigram[k]!.total : 0;
+
+  return {
+    accuracy,
+    correctKeys: correct,
+    incorrectKeys: total - correct,
+    total,
+    wpm,
+    rawWpm,
+    consistency,
+    durationMs,
+    accuracyByKey: byKey,
+    accuracyByBigram: byBigram,
+  };
+}
+
+// Helper para identificar bigrams débiles (<85% accuracy)
+export function weakBigrams(metrics: DetailedTypingMetrics, threshold = 0.85): string[] {
+  return Object.entries(metrics.accuracyByBigram)
+    .filter(([, v]) => v.acc < threshold && v.total >= 2)
+    .sort((a, b) => a[1].acc - b[1].acc)
+    .slice(0, 5)
+    .map(([k]) => k);
+}

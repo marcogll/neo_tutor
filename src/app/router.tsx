@@ -10,18 +10,7 @@ import { Settings } from '@/features/settings/Settings';
 import { Home } from './Home';
 import { CourseList } from '@/features/course/CourseList';
 import { CodeLesson } from '@/features/course/CodeLesson';
-import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
-function Placeholder({ title }: { title: string }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>En construcción — Fase 1→2</CardDescription>
-      </CardHeader>
-    </Card>
-  );
-}
 
 function getBasename(): string | undefined {
   // code-server proxy: https://.../proxy/5173/ -> window.pathname = /proxy/5173/
@@ -51,7 +40,6 @@ export const router = createBrowserRouter(
       { path: 'cursos', element: <CourseList /> },
       { path: 'cursos/:domain', element: <CourseList /> },
       { path: 'code/:id', element: <CodeLesson /> },
-        { path: 'ajustes', element: <Placeholder title="Ajustes" /> },
       ],
     },
   ],
